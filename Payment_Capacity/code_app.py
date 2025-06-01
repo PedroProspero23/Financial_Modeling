@@ -8,35 +8,35 @@ from fpdf import FPDF
 import tempfile
 import io
 
-st.set_page_config(page_title="Análise de Capacidade de Pagamento - Setor Agro", layout="wide")
-st.title("🏦 Análise de Capacidade de Pagamento Empresarial")
+st.set_page_config(page_title="Payment Capacity Analysis - Agribusiness Sector", layout="wide")
+st.title("🏦 Corporate Payment Capacity Analysis")
 
-abas = st.tabs(["📋 Formulário Manual", "📁 Importar CSV em Lote"])
+tabs = st.tabs(["📋 Manual Input", "📁 Import CSV Batch"])
 
-# Funções auxiliares
+# Helper functions
 def safe_div(n, d):
     return round(n / d, 2) if d else None
 
-def normaliza(v, mi, ma):
+def normalize(v, mi, ma):
     return max(0, min((v - mi) / (ma - mi), 1)) if v is not None else 0
 
-def calcular_indicadores(row):
-    indicadores = {}
-    indicadores["Liquidez Corrente"] = safe_div(row["ativo_circulante"], row["passivo_circulante"])
-    indicadores["Liquidez Seca"] = safe_div(row["ativo_circulante"] - row["estoques"], row["passivo_circulante"])
-    indicadores["Liquidez Imediata"] = safe_div(row["disponivel"], row["passivo_circulante"])
-    indicadores["Endividamento Geral"] = safe_div(row["passivo_total"], row["ativo_total"])
-    indicadores["ROE"] = safe_div(row["lucro_liquido"], row["patrimonio_liquido"])
-    indicadores["DSCR"] = safe_div(row["fluxo_caixa_operacional"], row["servico_divida"])
-    indicadores["Cobertura Juros"] = safe_div(row["ebitda"], row["servico_divida"])
-    return indicadores
+def calculate_indicators(row):
+    indicators = {}
+    indicators["Current Liquidity"] = safe_div(row["ativo_circulante"], row["passivo_circulante"])
+    indicators["Quick Ratio"] = safe_div(row["ativo_circulante"] - row["estoques"], row["passivo_circulante"])
+    indicators["Immediate Liquidity"] = safe_div(row["disponivel"], row["passivo_circulante"])
+    indicators["Total Debt Ratio"] = safe_div(row["passivo_total"], row["ativo_total"])
+    indicators["ROE"] = safe_div(row["lucro_liquido"], row["patrimonio_liquido"])
+    indicators["DSCR"] = safe_div(row["fluxo_caixa_operacional"], row["servico_divida"])
+    indicators["Interest Coverage"] = safe_div(row["ebitda"], row["servico_divida"])
+    return indicators
 
-def classificar_rating(ind):
+def classify_rating(ind):
     score = 0
-    if ind["Liquidez Corrente"] is not None:
-        score += 3 if ind["Liquidez Corrente"] >= 1.5 else 2 if ind["Liquidez Corrente"] >= 1 else 1
-    if ind["Endividamento Geral"] is not None:
-        score += 3 if ind["Endividamento Geral"] <= 0.5 else 2 if ind["Endividamento Geral"] <= 0.7 else 1
+    if ind["Current Liquidity"] is not None:
+        score += 3 if ind["Current Liquidity"] >= 1.5 else 2 if ind["Current Liquidity"] >= 1 else 1
+    if ind["Total Debt Ratio"] is not None:
+        score += 3 if ind["Total Debt Ratio"] <= 0.5 else 2 if ind["Total Debt Ratio"] <= 0.7 else 1
     if ind["DSCR"] is not None:
         score += 6 if ind["DSCR"] >= 2 else 4 if ind["DSCR"] >= 1.2 else 2
     if ind["ROE"] is not None:
@@ -51,29 +51,29 @@ def classificar_rating(ind):
     else:
         return "D", 0.00
 
-# Variável para armazenar o PDF
+# Variable to store the PDF
 pdf_bytes = None
 
-with abas[0]:
-    st.sidebar.header("📋 Dados Financeiros da Empresa")
-    receita_total = st.sidebar.number_input("Receita líquida anual (R$)", 0.0, step=1000.0)
-    lucro_liquido = st.sidebar.number_input("Lucro líquido anual (R$)", 0.0, step=1000.0)
-    ativo_circulante = st.sidebar.number_input("Ativo circulante (R$)", 0.0, step=1000.0)
-    passivo_circulante = st.sidebar.number_input("Passivo circulante (R$)", 0.0, step=1000.0)
-    estoques = st.sidebar.number_input("Estoques (R$)", 0.0, step=1000.0)
-    disponivel = st.sidebar.number_input("Disponibilidades (R$)", 0.0, step=1000.0)
-    ativo_total = st.sidebar.number_input("Ativo total (R$)", 0.0, step=1000.0)
-    passivo_total = st.sidebar.number_input("Passivo total (R$)", 0.0, step=1000.0)
-    patrimonio_liquido = st.sidebar.number_input("Patrimônio líquido (R$)", 0.0, step=1000.0)
-    servico_divida = st.sidebar.number_input("Serviço da dívida anual (R$)", 0.0, step=1000.0)
-    ebitda = st.sidebar.number_input("EBITDA anual (R$)", 0.0, step=1000.0)
-    fluxo_caixa_operacional = st.sidebar.number_input("Fluxo de caixa operacional (R$)", 0.0, step=1000.0)
-    valor_garantia = st.sidebar.number_input("Valor da garantia (R$)", 0.0, step=1000.0)
-    tipo_garantia = st.sidebar.selectbox("Tipo de garantia", ["Imóvel", "Equipamento", "Veículo", "Outro"])
-    gerar = st.sidebar.button("📊 Gerar Análise")
+with tabs[0]:
+    st.sidebar.header("📋 Company Financial Data")
+    receita_total = st.sidebar.number_input("Net annual revenue (R$)", 0.0, step=1000.0)
+    lucro_liquido = st.sidebar.number_input("Net income (R$)", 0.0, step=1000.0)
+    ativo_circulante = st.sidebar.number_input("Current assets (R$)", 0.0, step=1000.0)
+    passivo_circulante = st.sidebar.number_input("Current liabilities (R$)", 0.0, step=1000.0)
+    estoques = st.sidebar.number_input("Inventory (R$)", 0.0, step=1000.0)
+    disponivel = st.sidebar.number_input("Cash and equivalents (R$)", 0.0, step=1000.0)
+    ativo_total = st.sidebar.number_input("Total assets (R$)", 0.0, step=1000.0)
+    passivo_total = st.sidebar.number_input("Total liabilities (R$)", 0.0, step=1000.0)
+    patrimonio_liquido = st.sidebar.number_input("Shareholders' equity (R$)", 0.0, step=1000.0)
+    servico_divida = st.sidebar.number_input("Annual debt service (R$)", 0.0, step=1000.0)
+    ebitda = st.sidebar.number_input("Annual EBITDA (R$)", 0.0, step=1000.0)
+    fluxo_caixa_operacional = st.sidebar.number_input("Operating cash flow (R$)", 0.0, step=1000.0)
+    valor_garantia = st.sidebar.number_input("Collateral value (R$)", 0.0, step=1000.0)
+    tipo_garantia = st.sidebar.selectbox("Collateral type", ["Real Estate", "Equipment", "Vehicle", "Other"])
+    generate = st.sidebar.button("📊 Generate Analysis")
 
-    if gerar:
-        dados = {
+    if generate:
+        data = {
             "ativo_circulante": ativo_circulante,
             "passivo_circulante": passivo_circulante,
             "estoques": estoques,
@@ -86,38 +86,38 @@ with abas[0]:
             "servico_divida": servico_divida,
             "ebitda": ebitda
         }
-        indicadores = calcular_indicadores(dados)
-        rating, percentual_cobertura = classificar_rating(indicadores)
-        valor_aceito = valor_garantia * percentual_cobertura
+        indicators = calculate_indicators(data)
+        rating, coverage_pct = classify_rating(indicators)
+        accepted_value = valor_garantia * coverage_pct
 
-        st.subheader("📊 Indicadores Calculados")
-        for nome, valor in indicadores.items():
-            st.markdown(f"**{nome}: {valor if valor is not None else 'n/d'}**")
+        st.subheader("📊 Calculated Indicators")
+        for name, value in indicators.items():
+            st.markdown(f"**{name}: {value if value is not None else 'n/a'}**")
 
-        st.subheader("📌 Rating Final")
+        st.subheader("📌 Final Rating")
         st.markdown(f"**Rating: {rating}**")
-        st.markdown(f"**Limite Sugerido: R$ {valor_aceito:,.2f}**")
-        st.markdown(f"🔒 Tipo de Garantia: {tipo_garantia}")
-        st.markdown(f"📉 Cobertura Aceita pelo Banco: {percentual_cobertura * 100:.0f}%")
+        st.markdown(f"**Suggested Limit: R$ {accepted_value:,.2f}**")
+        st.markdown(f"🔒 Collateral Type: {tipo_garantia}")
+        st.markdown(f"📉 Bank's Accepted Coverage: {coverage_pct * 100:.0f}%")
 
-        st.subheader("📈 Gráfico de Indicadores")
+        st.subheader("📈 Indicator Bar Chart")
         fig_bar, ax = plt.subplots(figsize=(10, 5))
-        ax.bar(indicadores.keys(), [v if v is not None else 0 for v in indicadores.values()])
-        ax.set_xticks(range(len(indicadores)))
-        ax.set_xticklabels(indicadores.keys(), rotation=30, ha="right")
+        ax.bar(indicators.keys(), [v if v is not None else 0 for v in indicators.values()])
+        ax.set_xticks(range(len(indicators)))
+        ax.set_xticklabels(indicators.keys(), rotation=30, ha="right")
         st.pyplot(fig_bar)
 
-        st.markdown("Este gráfico de barras mostra a distribuição individual de cada indicador financeiro. Quanto maiores os valores de liquidez e DSCR, melhor a saúde financeira da empresa. Endividamento elevado indica risco.")
+        st.markdown("This bar chart shows the individual distribution of each financial indicator. Higher liquidity and DSCR values indicate better financial health. High debt signals risk.")
 
-        st.subheader("🕸️ Radar de Performance")
+        st.subheader("🕸️ Performance Radar")
         radar_vals = [
-            normaliza(indicadores["Liquidez Corrente"], 0, 3),
-            normaliza(indicadores["DSCR"], 0, 3),
-            normaliza(indicadores["ROE"], 0, 0.3),
-            normaliza(1 - indicadores["Endividamento Geral"], 0, 1),
-            normaliza(indicadores["Cobertura Juros"], 0, 5),
+            normalize(indicators["Current Liquidity"], 0, 3),
+            normalize(indicators["DSCR"], 0, 3),
+            normalize(indicators["ROE"], 0, 0.3),
+            normalize(1 - indicators["Total Debt Ratio"], 0, 1),
+            normalize(indicators["Interest Coverage"], 0, 5),
         ]
-        labels = ["Liquidez", "DSCR", "ROE", "Solvência", "Cobertura"]
+        labels = ["Liquidity", "DSCR", "ROE", "Solvency", "Coverage"]
         radar_vals += radar_vals[:1]
         angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
         angles += angles[:1]
@@ -128,72 +128,72 @@ with abas[0]:
         ax.set_thetagrids(np.degrees(angles[:-1]), labels)
         st.pyplot(fig_radar)
 
-        st.markdown("O radar resume a performance global da empresa. Idealmente, todas as áreas devem estar preenchidas de forma uniforme, indicando equilíbrio financeiro. Pontas retraídas sugerem fragilidades específicas.")
+        st.markdown("The radar chart summarizes the company's overall performance. Ideally, all areas should be evenly filled, indicating financial balance. Retracted areas suggest specific weaknesses.")
 
-        st.subheader("🧐 Recomendações")
-        recomendacoes = []
-        if rating == "D": recomendacoes.append("❌ Evitar concessão de crédito.")
-        if rating == "C": recomendacoes.append("⚠️ Garantia real obrigatória.")
-        if indicadores["DSCR"] and indicadores["DSCR"] < 1.2:
-            recomendacoes.append("🔴 Capacidade de pagamento limitada.")
-        if recomendacoes:
-            for r in recomendacoes:
+        st.subheader("🧐 Recommendations")
+        recommendations = []
+        if rating == "D": recommendations.append("❌ Avoid credit approval.")
+        if rating == "C": recommendations.append("⚠️ Real collateral required.")
+        if indicators["DSCR"] and indicators["DSCR"] < 1.2:
+            recommendations.append("🔴 Limited payment capacity.")
+        if recommendations:
+            for r in recommendations:
                 st.markdown(f"- {r}")
         else:
-            st.markdown("Nenhuma recomendação crítica.")
+            st.markdown("No critical recommendations.")
 
-        # Salvar imagens dos gráficos
+        # Save chart images
         bar_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         fig_bar.savefig(bar_path.name, bbox_inches="tight")
 
         radar_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
         fig_radar.savefig(radar_path.name, bbox_inches="tight")
 
-        # Geração de PDF
+        # Generate PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        pdf.cell(0, 10, "Relatório de Análise de Capacidade de Pagamento", ln=True)
+        pdf.cell(0, 10, "Payment Capacity Analysis Report", ln=True)
         pdf.ln(5)
-        for nome, valor in indicadores.items():
-            if valor is not None:
-                texto = f"{nome}: {valor:.2f}".encode("latin-1", "ignore").decode("latin-1")
-                pdf.cell(0, 8, texto, ln=True)
+        for name, value in indicators.items():
+            if value is not None:
+                text = f"{name}: {value:.2f}".encode("latin-1", "ignore").decode("latin-1")
+                pdf.cell(0, 8, text, ln=True)
         pdf.cell(0, 8, f"Rating: {rating}", ln=True)
-        pdf.cell(0, 8, f"Limite Sugerido: R$ {valor_aceito:,.2f}", ln=True)
-        for rec in recomendacoes:
-            texto_rec = f"- {rec}".encode("latin-1", "ignore").decode("latin-1")
-            pdf.multi_cell(0, 8, texto_rec)
+        pdf.cell(0, 8, f"Suggested Limit: R$ {accepted_value:,.2f}", ln=True)
+        for rec in recommendations:
+            rec_text = f"- {rec}".encode("latin-1", "ignore").decode("latin-1")
+            pdf.multi_cell(0, 8, rec_text)
 
         pdf.add_page()
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, "Gráfico de Indicadores", ln=True)
+        pdf.cell(0, 10, "Indicator Bar Chart", ln=True)
         pdf.image(bar_path.name, x=10, y=25, w=180)
 
         pdf.add_page()
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, "Radar de Performance", ln=True)
+        pdf.cell(0, 10, "Performance Radar", ln=True)
         pdf.image(radar_path.name, x=25, y=30, w=150)
 
         pdf_bytes = pdf.output(dest='S').encode("latin-1")
-        st.download_button("📄 Clique aqui para baixar o PDF", pdf_bytes, file_name="relatorio_empresa.pdf")
+        st.download_button("📄 Click here to download the PDF", pdf_bytes, file_name="company_report.pdf")
 
-with abas[1]:
-    st.subheader("📁 Análise em Lote via CSV")
-    arquivo = st.file_uploader("📤 Selecione o arquivo CSV", type=["csv"])
+with tabs[1]:
+    st.subheader("📁 Batch Analysis via CSV")
+    file = st.file_uploader("📤 Upload your CSV file", type=["csv"])
 
-    if arquivo:
-        df = pd.read_csv(arquivo)
-        st.success("✅ Arquivo carregado com sucesso!")
+    if file:
+        df = pd.read_csv(file)
+        st.success("✅ File successfully loaded!")
         st.dataframe(df)
 
         for i, row in df.iterrows():
-            st.markdown(f"### Empresa {i + 1}")
-            indicadores = calcular_indicadores(row)
-            rating, percentual_cobertura = classificar_rating(indicadores)
-            valor_aceito = row["valor_garantia"] * percentual_cobertura
-            for nome, valor in indicadores.items():
-                st.markdown(f"**{nome}: {valor if valor is not None else 'n/d'}**")
+            st.markdown(f"### Company {i + 1}")
+            indicators = calculate_indicators(row)
+            rating, coverage_pct = classify_rating(indicators)
+            accepted_value = row["valor_garantia"] * coverage_pct
+            for name, value in indicators.items():
+                st.markdown(f"**{name}: {value if value is not None else 'n/a'}**")
             st.markdown(f"**Rating: {rating}**")
-            st.markdown(f"**Limite Sugerido: R$ {valor_aceito:,.2f}**")
+            st.markdown(f"**Suggested Limit: R$ {accepted_value:,.2f}**")
             st.markdown("---")
