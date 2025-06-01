@@ -176,7 +176,7 @@ with abas[0]:
         pdf.image(radar_path.name, x=25, y=30, w=150)
 
         pdf_bytes = pdf.output(dest='S').encode("latin-1")
-        st.download_button("📄 Clique aqui para baixar o PDF", pdf_bytes, file_name="relatorio_agro.pdf")
+        st.download_button("📄 Clique aqui para baixar o PDF", pdf_bytes, file_name="relatorio_empresa.pdf")
 
 with abas[1]:
     st.subheader("📁 Análise em Lote via CSV")
